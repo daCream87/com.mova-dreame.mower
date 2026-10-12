@@ -7470,6 +7470,9 @@ class MowerDevice extends Homey.Device {
           && (!Number.isInteger(Number(rule.mapIndex)) || Number(rule.mapIndex) === Number(this._activeMapIndex)));
       let changed = 0;
       for (const [ruleId] of entries) {
+        if (returnHoldVerified && !this._garageSafety?._returnLifecycleMapEditAllowed?.()) {
+          return { ok:false, deferred:false, reason:'return_stop_lost_during_zone_sync' };
+        }
         let rule = this._obstacleRulesCache?.[ruleId];
         if (!rule) continue;
         if (rule.pending) {
@@ -7535,6 +7538,9 @@ class MowerDevice extends Homey.Device {
       const directPolicies = Object.entries(this._nativeZonePoliciesCache || {})
         .filter(([, policy]) => policy && Number(policy.mapIndex) === Number(this._activeMapIndex));
       for (const [policyKey] of directPolicies) {
+        if (returnHoldVerified && !this._garageSafety?._returnLifecycleMapEditAllowed?.()) {
+          return { ok:false, deferred:false, reason:'return_stop_lost_during_native_zone_sync' };
+        }
         let policies = { ...(this._nativeZonePoliciesCache || {}) };
         let policy = policies[policyKey];
         if (!policy) continue;
@@ -7624,6 +7630,9 @@ class MowerDevice extends Homey.Device {
         }
       }
 
+      if (returnHoldVerified && !this._garageSafety?._returnLifecycleMapEditAllowed?.()) {
+        return { ok:false, deferred:false, reason:'return_stop_lost_after_zone_sync' };
+      }
       if (changed) this._scheduleMapCameraImageUpdate();
       return { ok:true, changed, phase };
     })();
