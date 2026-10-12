@@ -79,6 +79,9 @@ test('native return zone edit waits for verified pause and fresh clearance', asy
     return true;
   };
   let syncs = 0;
+  // Emulate the vendor map readback: after confirmed edit the transition
+  // must no longer be reported as pending.
+  e.device._pylonLifecycleNeedsTransition = () => syncs === 0;
   e.device._syncPylonLifecyclePhase = async (phase) => {
     assert.equal(phase, 'return');
     assert.equal(e._returnLifecycleMapEditAllowed(), true);
