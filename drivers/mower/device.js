@@ -1927,10 +1927,10 @@ class MowerDevice extends Homey.Device {
                      ?? prop.deviceCode ?? prop.device_code ?? prop.latestCode ?? prop.errCode
                      ?? this._mqttErrorCode ?? 0;
       const effectiveFaultCode = faultCode !== 0 ? faultCode : (this._mqttErrorCode ?? 0);
-      const isMova = (this.getSetting('device_model') || '').startsWith('mova.');
-      const isEffectiveError = ERROR_DEVICE_CODES.has(effectiveFaultCode)
-                            || (isMova && this._mqttErrorCode === 0);
-      const mowerStatus = (rawStatus === 'paused' && isEffectiveError) ? 'error' : rawStatus;
+      // Native latestStatus=3 is PAUSED even when a stale MQTT fault code
+      // (often 27 after original-app pause) is still cached. Never turn a
+      // genuine PAUSED status into ERROR; native latestStatus=4 still is ERROR.
+      const mowerStatus = rawStatus;
       if (mowerStatus === 'error' || rawStatus === 'paused') {
         this.log(`[diag] latestStatus=${info.latestStatus} rawStatus=${rawStatus} effective=${mowerStatus} faultCode=${faultCode} mqttErrorCode=${this._mqttErrorCode ?? 'none'}`);
       }
@@ -4989,9 +4989,9 @@ class MowerDevice extends Homey.Device {
             this._latestNativeStatusCode = nativeCode;
             const rawStatus = STATUS_MAP[nativeCode];
             const effectiveFaultCode = this._mqttErrorCode ?? 0;
-            const mowerStatus = rawStatus === 'paused' && ERROR_DEVICE_CODES.has(effectiveFaultCode)
-              ? 'error'
-              : rawStatus;
+            // Keep the native pause state authoritative. Fault code telemetry
+            // is independent and can outlive the pause/resume transition.
+            const mowerStatus = rawStatus;
 
             // If the original app starts mowing while the garage is still closed,
             // do not first publish that 'mowing' edge into the normal status state
@@ -7452,7 +7452,12 @@ class MowerDevice extends Homey.Device {
     if (this._pylonLifecycleSyncPromise) return this._pylonLifecycleSyncPromise;
     const run = (async () => {
       if (!this._api) return { ok:false, deferred:true, reason:'not_connected' };
-      if (!this._mapEditStationary()) {
+      // Garage return is an active workflow even during a proven physical
+      // standstill. Only the garage engine may attest this one-off checkpoint;
+      // ordinary/user map edits remain blocked throughout return motion.
+      const returnHoldVerified = phase === 'return'
+        && this._garageSafety?._returnLifecycleMapEditAllowed?.() === true;
+      if (!this._mapEditStationary() && !returnHoldVerified) {
         this.log('[pylon-lifecycle] sync deferred until mower is stationary', `phase=${phase}`, reason);
         return { ok:false, deferred:true, reason:'mower_moving' };
       }
