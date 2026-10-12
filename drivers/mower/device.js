@@ -7452,6 +7452,10 @@ class MowerDevice extends Homey.Device {
     if (this._pylonLifecycleSyncPromise) return this._pylonLifecycleSyncPromise;
     const run = (async () => {
       if (!this._api) return { ok:false, deferred:true, reason:'not_connected' };
+      // A no-op synchronization must not require a stationary edit checkpoint.
+      // Otherwise even a verified maintenance arrival can be blocked by the
+      // active return flag when no native zone actually needs changing.
+      if (!this._pylonLifecycleNeedsTransition(phase)) return { ok:true, changed:0 };
       // Garage return is an active workflow even during a proven physical
       // standstill. Only the garage engine may attest this one-off checkpoint;
       // ordinary/user map edits remain blocked throughout return motion.
