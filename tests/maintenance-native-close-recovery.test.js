@@ -23,7 +23,7 @@ function setup() {
   e.isReturning = () => false;
   e._emergencyHoldActive = () => false;
   e.doorState = () => 'open';
-  e.pos = () => ({ x: point.x, y: point.y, ts: Date.now() + (++sampleTs) });
+  e.pos = () => ({ x: point.x, y: point.y, ts: Date.now() - 10 + (++sampleTs) });
   e.status = () => observed;
   e.markers = { rawDangerState: async () => danger };
   e.log = () => {};
