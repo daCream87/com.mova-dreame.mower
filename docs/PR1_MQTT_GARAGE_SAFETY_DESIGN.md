@@ -165,7 +165,7 @@ as a conflict and automatic native point dispatch remains forbidden.
 
 A TASK109 must have executable+active evidence to establish maintenance
 classification; other 109 packets remain diagnostic hints. The classifier
-expires after 120 seconds without new maintenance task confirmation and is
+expires after 20 minutes without new maintenance task confirmation and is
 cleared on explicit task completion/return or MQTT reconnect. Status code 75
 is only an arrival hint, **not** verified physical point arrival.
 
