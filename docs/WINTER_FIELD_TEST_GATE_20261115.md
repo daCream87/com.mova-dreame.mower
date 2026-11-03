@@ -8,7 +8,9 @@ can be safely finished or validated by the deadline.
 - Preserve the entire CORE owner-use integration as a functioning whole.
 - Refactor against Andi's upstream 1.1.43 with minimal touches.
 - Native MQTT original-app gate safety is the highest-priority field-test milestone.
-- PR2 must include practical P1–P5 map touch targets and Repair navigation.
+- PR2 must include P1–P5 native MQTT learning, editable point names,
+  per-point map touch targets, Repair management, ★ primary, and
+  Fixed/Alternate **Wartungspunkt Shuffle** with safe per-mission pinning.
 - PR3 combines manual native exclusions **and** their time/mission lifecycle.
 - PR4 finishes full overview and human recovery.
 - Camera only **after** complete CORE is corrected/accepted; camera must not
@@ -27,8 +29,10 @@ can be safely finished or validated by the deadline.
 3. **Manual command compatibility:** Garage Mode OFF (Start/Resume/Pause/Stop/
    Dock, existing Flow cards), update of a preexisting paired device and
    migrated capabilities including cutting_height.
-4. **P1–P5:** original app learn, map-scoped confirmation, native 109,
-   user labels, primary point, touch UI and return from a verified point.
+4. **P1–P5:** original-app native learning with map-scoped MQTT task/arrival
+   confirmation, opcode 109, editable labels, ★ primary, touch map/Repair,
+   fixed target and alternating **shuffle between at least two verified native
+   points**, pinned during travel and advanced only after confirmed completion.
 5. **Native map editing:** unique geometry identity, wrong-ID refusal,
    STOP/idle preflight, serialized user and restore jobs, mandatory opcode 201
    exit even on deadline, verified native MAPD readback.
