@@ -1,0 +1,22 @@
+name: Compare original CORE baseline tests
+on:
+  push:
+    branches:
+      - integration/a2-core-pr1-observer-single-homey-20261103
+permissions:
+  contents: read
+jobs:
+  full-core-baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: bdc8e7097f203932db33541df3086562584e9795
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Baseline unmodified CORE unit regression
+        run: npm test
