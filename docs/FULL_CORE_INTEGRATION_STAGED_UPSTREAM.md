@@ -1,4 +1,13 @@
-# Full CORE integration: safety remediation and staged upstream
+# Full CORE integration — full owner-use configuration
+
+The owner's complete set of CORE features is maintained here together.
+This branch is not the staged small-PR source for direct merging, and the
+unfinished safety remediations are explicitly not certified for live use.
+
+**Safety-first staged sequence:** PR1 MQTT + original-app gate start/return
+protection; PR2 P1–P5 + corresponding map widget and Repair UI; PR3 manual
+native zones; PR4 lifecycle; PR5 remaining integrated overview/recovery.
+See [full staged specification](STAGED_PR_DEPENDENCY_PLAN.md).
 
 This branch is the **complete owner-use integration**, preserved separately
 from the staged PR series. Do not merge into upstream until Andi's review
@@ -33,11 +42,13 @@ points are corrected and verified.
   on the real mower for modified safety flows.
 
 ## Planned upstream review sequence
-1. Maintenance points P1–P5 + scoped map/widget and Repair UI
-2. Native MQTT and optional garage safety
+
+The authoritative sequence is in STAGED_PR_DEPENDENCY_PLAN.md:
+1. Original-app MQTT gate safety
+2. P1–P5 maintenance with the map/Repair controls that make it usable
 3. Manual native no-go zones
-4. Time- and mission-phase native lifecycle policy
-5. Garage-coupled overview and supervised recovery surfaces not suitable for PR1
+4. Native lifecycle rules
+5. Full overview/advanced recovery
 
 ## Test policy
 Run automatic unit / simulated regression and publish validation for each
