@@ -4089,7 +4089,11 @@ class MowerDevice extends Homey.Device {
   _destroyMqttClient() {
     this._mqttGeneration = (this._mqttGeneration || 0) + 1;
     this._mqttAuthFailed = false;
+    // A broker reconnect has a new observation epoch. Never combine a PAUSE
+    // from the old session with an ACTIVE/Continue in the new session.
     this._nativeEventAdapter?.reset();
+    this._nativeCommandTracker?.reset();
+    this._recentNativeActionSignals = [];
     if (this._mqttClient) {
       try { this._mqttClient.end(true); } catch (_) { /* force-close errors are irrelevant */ }
       this._mqttClient = null;
