@@ -7,6 +7,7 @@ const Homey = require('homey');
 const MovaApi = require('../../lib/MovaApi');
 const NativeEventAdapter = require('../../lib/mqtt/NativeEventAdapter');
 const OriginalAppMissionGuard = require('../../lib/mqtt/OriginalAppMissionGuard');
+const NativeCommandStateTracker = require('../../lib/mqtt/NativeCommandStateTracker');
 const GarageSafetyEngine = require('../../lib/garage/GarageSafetyEngine');
 const { resolveMaintenancePointIndex } = require('../../lib/garage/MaintenancePointResolver');
 
@@ -1224,6 +1225,8 @@ class MowerDevice extends Homey.Device {
     // Immutable native control/META diagnostics for PR2 P1–P5 learning.
     // This is RAM-only and deliberately does not issue manufacturer commands.
     this._recentNativeMissionMeta = [];
+    this._nativeCommandTracker = new NativeCommandStateTracker();
+    this._recentNativeActionSignals = [];
     this._lastNativeEvents = [];
 
     this._startPolling();
@@ -1232,6 +1235,8 @@ class MowerDevice extends Homey.Device {
 
   async onDeleted() {
     this._recentNativeMissionMeta = [];
+    this._recentNativeActionSignals = [];
+    this._nativeCommandTracker?.reset();
     this._externalMissionGuard?.dispose();
     this._stopPolling();
     this._disconnectMqtt();
@@ -4128,6 +4133,26 @@ class MowerDevice extends Homey.Device {
           this._recentNativeMissionMeta.push(event);
           if (this._recentNativeMissionMeta.length > 32)
             this._recentNativeMissionMeta.splice(0,this._recentNativeMissionMeta.length-32);
+          // State-correlated passive interpretation; never sends movement
+          // or gate commands. PR2 consumes this same evidence for P1-P5.
+          const dock = this._externalMissionGuard?.latestDock;
+          const age = dock ? Date.now()-Number(dock.observedAt||0) : NaN;
+          const garage = this._garageSafety;
+          const action = this._nativeCommandTracker?.observe(event, {
+            physicalOutside: garage?._missionOutside===true
+              && garage?.isDockedHomeStatus?.()===false,
+            nativeDockState: dock?.dockingState || null,
+            nativeDockAgeMs: age,
+            garageMissionRecovering: !!this._externalMissionGuard?.inFlight,
+            garageEnabled: this._externalMissionGuard?.enabled() === true,
+          });
+          if (action) {
+            this._recentNativeActionSignals.push(action);
+            if (this._recentNativeActionSignals.length>32)
+              this._recentNativeActionSignals.splice(0,this._recentNativeActionSignals.length-32);
+            this.log('[mqtt-action]', action.action,
+              action.pointIndex ? 'P'+action.pointIndex : '');
+          }
         }
         else if (event.type === 'native_undock_intent') this._externalMissionGuard?.onUndockIntent(event);
         else if (event.type === 'status_raw' && Number(event.value) === 5) {

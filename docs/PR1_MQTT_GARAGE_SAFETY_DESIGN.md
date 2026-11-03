@@ -1,8 +1,9 @@
 # PR1 design — native MQTT early original-app gate interception
 
-**Status: initial native MQTT observation adapter integrated with upstream
-device.js, read-only and covered by focused tests. The external-command gate
-safety coordinator is NOT implemented yet; not ready to submit or deploy.**
+**Status: native MQTT event adapter, original-app gate-safety observer, and
+passive Pause/Resume/Start/Return/Maintenance classification implemented.
+Automated tests and Homey publish validation run in GitHub Actions.
+Physical gate safety remains UNVALIDATED; do not deploy as a guarantee.**
 
 Base: Andi upstream 1.1.43; no native no-go-zone editing, lifecycle, P2–P5
 automation or camera.
@@ -95,9 +96,11 @@ acceptance**.
 - `drivers/mower/device.js`: minimal import, initialization, observer call and cleanup
 - `tests/pr1-native-event-adapter.test.js`: parsing, duplicate, stale topic/generation, reset tests
 
-**Not yet delivered:** automatic sensor-proof-based gate STOP/Pause/Open/Resume,
-original-app return safety, physical acceptance, complete regression suite and
-Homey publish validation. No claims of safe deployment at this stage.
+**Implementation present but not field-approved:** original-app early PAUSE/
+STOP, sensor-verified gate opening, guarded command recovery and return owner.
+Outstanding: real-world safety acceptance, manufacturer-app protocol traces,
+complete compatibility/upgrade coverage and reliable collision-free hardware
+interlock. Do not treat passing Homey publish validation as physical proof.
 
 ## META/TASK native command bridge for PR2
 
@@ -114,3 +117,33 @@ correlate task, position, native index, active map and arrival with fresh eviden
 **META itself never sends Start/Pause/Resume/Stop, never invents a waypoint, and
 never proves the original-app source.** PR2 adds verified native learning and
 maintenance-point-specific command orchestration through PR1's garage interlock.
+
+## Active/Continue interpretation (PR1, passive; PR2-ready)
+
+`NativeCommandStateTracker` correlates native status (2:1), control phases
+(2:56), task (2:50), fresh native station-out telemetry, the previously
+observed PAUSED state and the current garage owner. An active event alone is
+**ambiguous**, not proof of new Start or Resume. A `resume_outside_observed`
+diagnostic is emitted only when recent PAUSED and independently fresh OUT_OF_
+STATION plus already-outside mission state match. No new cloud command is
+sent on this diagnostic. Missing/contradictory evidence leaves a
+`continue_ambiguous` event. All snapshots are bounded RAM-only diagnostics;
+the P1-P5 learner in PR2 can consume the events without manufacturing an
+unconfirmed point or sending a motor command.
+
+### Safe validation steps
+
+1. On PC: `npm ci && npm test && homey app validate --level publish`.
+2. Review exact GitHub commit/Actions success; confirm existing installed full
+   CORE was backed up before any alternate app installation.
+3. Initial observation only: Garage Mode OFF, no automation commanding gate,
+   mower stationary and physically prevented from driving into the gate.
+4. Controlled pause/continue on a **clear, open test area**, record Homey logs
+   `[mqtt-action] pause_observed / resume_outside_observed / continue_ambiguous`.
+5. Only with a separate independent physical barrier/interlock and on-site
+   person able to stop hardware: test vendor-app original start/return with
+   known reliable contact; record MQTT receipt, PAUSE/STOP completion, sensor
+   OPEN, and actual mower movement timing.
+6. Any unexpected gate actuation, pause failure, stale UI or missing signal:
+   stop test, keep physical gate safe, capture logs. Never use software-only
+   reactive MQTT as the sole safety device against a closed gate.
