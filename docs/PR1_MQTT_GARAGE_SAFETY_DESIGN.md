@@ -147,3 +147,28 @@ unconfirmed point or sending a motor command.
 6. Any unexpected gate actuation, pause failure, stale UI or missing signal:
    stop test, keep physical gate safe, capture logs. Never use software-only
    reactive MQTT as the sole safety device against a closed gate.
+
+## TASK109 precedence — no false normal mowing starts (PR1)
+
+The native A2 status can say `mowing` during a manufacturer maintenance
+journey. PR1 therefore keeps the manufacturer's raw state but gives a **fresh
+executing/active TASK opcode 109 precedence in the mission classifier**.
+The existing `garage_maintenance_transit` display status is used when
+appropriate while Garage Mode is active. A native maintenance task does not
+invoke the normal-mowing external start fallback; the independently triggered
+native undock gate-safety protection remains active.
+
+P1 and P2 are distinct **explicit native point indexes**, never guessed from
+names, a generic 2:56 Continue, a previous P1 or the global primary. Missing
+point identity remains unknown. Contradictory active P1/P2 evidence is marked
+as a conflict and automatic native point dispatch remains forbidden.
+
+A TASK109 must have executable+active evidence to establish maintenance
+classification; other 109 packets remain diagnostic hints. The classifier
+expires after 120 seconds without new maintenance task confirmation and is
+cleared on explicit task completion/return or MQTT reconnect. Status code 75
+is only an arrival hint, **not** verified physical point arrival.
+
+PR2 adds actual P1–P5 learning/current-map arrival confirmation, UI labels,
+manual point dispatch and Shuffle. These unverified operations are NOT enabled
+by PR1.

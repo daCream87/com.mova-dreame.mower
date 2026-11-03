@@ -3268,9 +3268,17 @@ class MowerDevice extends Homey.Device {
       await this._setCap('mower_task_status', taskStatus);
     }
 
-    const requestedDisplayStatus = this._garageSafety && this._garageSafety.getTileStatus
+    const nativeMaintenanceObserved = status === 'mowing'
+      && this._garageSafety?.enabled?.() === true
+      && this._nativeCommandTracker?.activeMaintenanceContext?.()?.active === true;
+    const baseDisplayStatus = this._garageSafety && this._garageSafety.getTileStatus
       ? this._garageSafety.getTileStatus(status)
       : status;
+    // Upstream mower_status cannot represent the vendor's raw "mowing" while
+    // TASK 109 is actually carrying the mower to a maintenance point. Use an
+    // already-existing garage enum; keep _nativeMowerStatus as true raw data.
+    const requestedDisplayStatus = nativeMaintenanceObserved && baseDisplayStatus === 'mowing'
+      ? 'garage_maintenance_transit' : baseDisplayStatus;
     // Homey's mower_status capability is a strict enum. Never write transient
     // internal values such as "unknown" into it. Keep the last valid visible
     // state (or the valid native state) until fresh telemetry arrives.
@@ -3296,7 +3304,11 @@ class MowerDevice extends Homey.Device {
 
     await this._setCap('mower_status', displayStatus);
     const resumeGuardActive = this._resumeGuardUntil && Date.now() < this._resumeGuardUntil;
-    if (status === 'mowing' && prev !== 'mowing' && !resumeGuardActive) {
+    if (status === 'mowing' && prev !== 'mowing' && nativeMaintenanceObserved) {
+      // TASK109 is not a lawn mowing Start. Native undock and gate protection
+      // still run in PR1, but the generic external mowing fallback must not.
+      this.log('[mqtt-action] maintenance_task_suppressed_mowing_start');
+    } else if (status === 'mowing' && prev !== 'mowing' && !resumeGuardActive) {
       this._garageSafety.onExternalMowingDetected().catch((e) => this.error('[garage] external start guard:', e.message));
     } else if (status === 'mowing' && prev !== 'mowing' && resumeGuardActive) {
       this.log('[garage] mowing after resume accepted without garage start flow');
