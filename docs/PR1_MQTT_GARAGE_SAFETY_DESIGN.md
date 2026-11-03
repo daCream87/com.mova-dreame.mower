@@ -98,3 +98,19 @@ acceptance**.
 **Not yet delivered:** automatic sensor-proof-based gate STOP/Pause/Open/Resume,
 original-app return safety, physical acceptance, complete regression suite and
 Homey publish validation. No claims of safe deployment at this stage.
+
+## META/TASK native command bridge for PR2
+
+PR1 provides a read-only interpretation of manufacturer-native task metadata
+in `lib/mqtt/NativeMissionMeta.js`. It recognizes native mowing/pause/return/
+maintenance status and 2:56 control phases (queued, active/continue, paused,
+completed). `TASK` opcode 109 is tagged as maintenance, including its actual
+native P1–P5 index **only when explicitly present**; this is not a learning
+result or proof of arrival.
+
+The `OriginalAppMissionGuard` retains a time-bounded latest native META
+observation. `device.js` holds a bounded RAM-only event ring for PR2 to
+correlate task, position, native index, active map and arrival with fresh evidence.
+**META itself never sends Start/Pause/Resume/Stop, never invents a waypoint, and
+never proves the original-app source.** PR2 adds verified native learning and
+maintenance-point-specific command orchestration through PR1's garage interlock.

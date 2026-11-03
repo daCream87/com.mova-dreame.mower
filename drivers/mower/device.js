@@ -1221,6 +1221,9 @@ class MowerDevice extends Homey.Device {
     // from this observer. Original MQTT handlers remain source-compatible.
     this._nativeEventAdapter = new NativeEventAdapter();
     this._externalMissionGuard = new OriginalAppMissionGuard(this);
+    // Immutable native control/META diagnostics for PR2 P1–P5 learning.
+    // This is RAM-only and deliberately does not issue manufacturer commands.
+    this._recentNativeMissionMeta = [];
     this._lastNativeEvents = [];
 
     this._startPolling();
@@ -1228,6 +1231,7 @@ class MowerDevice extends Homey.Device {
   }
 
   async onDeleted() {
+    this._recentNativeMissionMeta = [];
     this._externalMissionGuard?.dispose();
     this._stopPolling();
     this._disconnectMqtt();
@@ -4119,6 +4123,12 @@ class MowerDevice extends Homey.Device {
       for (const event of this._lastNativeEvents) {
         if (event.type === 'dock_state') this._externalMissionGuard?.noteNativeDock(event);
         else if (event.type === 'task_raw') this._externalMissionGuard?.noteTask(event);
+        else if (event.type === 'mission_meta') {
+          this._externalMissionGuard?.noteMissionMeta(event);
+          this._recentNativeMissionMeta.push(event);
+          if (this._recentNativeMissionMeta.length > 32)
+            this._recentNativeMissionMeta.splice(0,this._recentNativeMissionMeta.length-32);
+        }
         else if (event.type === 'native_undock_intent') this._externalMissionGuard?.onUndockIntent(event);
         else if (event.type === 'status_raw' && Number(event.value) === 5) {
           this._externalMissionGuard?.onReturnStatus();
