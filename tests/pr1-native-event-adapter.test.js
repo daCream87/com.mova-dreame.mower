@@ -12,7 +12,7 @@ test('read-only adapter normalizes native events without inventing movement auth
   ]}};
   const events = adapter.ingest(packet,{topic:'/status/mower/',expectedTopic:'/status/mower/',receivedAt:100});
   assert.deepEqual(events.map(x=>x.type),['status_raw','mission_meta','task_raw','mission_meta']);
-  assert.equal(events[2].hint,null);
+  assert.equal(events[2].hint,'maintenance_opcode_observed');
   assert.equal(events[3].value.kind,'maintenance');
   assert.equal(events[2].origin,undefined);
   assert.equal(events.some(x=>x.allowMovement===true),false);
