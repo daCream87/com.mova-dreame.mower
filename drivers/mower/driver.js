@@ -2,6 +2,7 @@
 
 const Homey = require('homey');
 const MovaApi = require('../../lib/MovaApi');
+const MaintenancePointCatalog = require('../../lib/maintenance/MaintenancePointCatalog');
 
 class MowerDriver extends Homey.Driver {
   async onInit() {
@@ -158,6 +159,21 @@ class MowerDriver extends Homey.Driver {
 
   async onRepair(session, device) {
     let api = null;
+    const catalog = new MaintenancePointCatalog(device);
+
+    // New Repair views are independent of Garage Mode. All operations here are
+    // Homey-local labels/preferences: no manufacturer motion or map commands.
+    session.setHandler('get_repair_ui_language', async () =>
+      (await device.getStoreValue('repair_ui_language_v1')) ||
+      this.homey.i18n?.getLanguage?.() || 'en');
+    session.setHandler('set_repair_ui_language', async ({ language }) => {
+      if (!['de', 'en'].includes(language)) throw new Error('Unsupported UI language');
+      await device.setStoreValue('repair_ui_language_v1', language);
+      return language;
+    });
+    session.setHandler('get_maintenance_point_config', async () => catalog.getConfig());
+    session.setHandler('save_maintenance_point_name', async (details) => catalog.save(details));
+
 
     // Let the repair page pre-select the correct brand and region.
     session.setHandler('get_repair_settings', async () => ({

@@ -117,6 +117,12 @@
   "repair": [
     {
       "id": "repair"
+    },
+    {
+      "id": "maintenance_settings"
+    },
+    {
+      "id": "reauth"
     }
   ],
   "settings": [
