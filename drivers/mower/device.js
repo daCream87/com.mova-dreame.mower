@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const mqtt   = require('mqtt');
 const Homey = require('homey');
 const MovaApi = require('../../lib/MovaApi');
+const NativeEventAdapter = require('../../lib/mqtt/NativeEventAdapter');
 const GarageSafetyEngine = require('../../lib/garage/GarageSafetyEngine');
 const { resolveMaintenancePointIndex } = require('../../lib/garage/MaintenancePointResolver');
 
@@ -1215,6 +1216,10 @@ class MowerDevice extends Homey.Device {
     this._mqttAuthFailed  = false;
     this._mqttAuthRetried = false;
     this._mqttToken       = null;
+    // PR1 native observation foundation. No garage commands are dispatched
+    // from this observer. Original MQTT handlers remain source-compatible.
+    this._nativeEventAdapter = new NativeEventAdapter();
+    this._lastNativeEvents = [];
 
     this._startPolling();
     this._connectMqtt();
@@ -4077,6 +4082,8 @@ class MowerDevice extends Homey.Device {
   }
 
   _disconnectMqtt() {
+    this._nativeEventAdapter?.reset();
+    this._lastNativeEvents = [];
     if (!this._mqttClient) return;
     this._mqttStopped = true;
     this._destroyMqttClient();
@@ -4090,6 +4097,17 @@ class MowerDevice extends Homey.Device {
     } catch {
       this.log(`[mqtt] non-JSON message: ${message.toString().substring(0, 200)}`);
       return;
+    }
+
+    // Normalized read-only native events. No movement, gate or map writes.
+    // Later PR1 security phases may subscribe to these observations only
+    // after explicit Garage Mode and physical interlock checks.
+    if (this._nativeEventAdapter) {
+      this._lastNativeEvents = this._nativeEventAdapter.ingest(parsed, {
+        topic, expectedTopic: this._mqttTopic,
+        generation: this._mqttGeneration, currentGeneration: this._mqttGeneration,
+        receivedAt: Date.now(),
+      });
     }
 
     if (parsed.data?.method === 'properties_changed' && Array.isArray(parsed.data.params)) {

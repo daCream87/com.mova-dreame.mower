@@ -1,7 +1,8 @@
 # PR1 design — native MQTT early original-app gate interception
 
-**Status: design scaffold only; no mower commands or runtime changes in this
-branch yet. Not ready to submit or deploy.**
+**Status: initial native MQTT observation adapter integrated with upstream
+device.js, read-only and covered by focused tests. The external-command gate
+safety coordinator is NOT implemented yet; not ready to submit or deploy.**
 
 Base: Andi upstream 1.1.43; no native no-go-zone editing, lifecycle, P2–P5
 automation or camera.
@@ -26,7 +27,8 @@ is not a substitute for a physical interlock.
 ## Core modules (independent and extensible)
 
 **NativeEventAdapter**
-- Normalize the existing upstream authenticated MQTT messages.
+- Normalize the existing upstream authenticated MQTT messages (initially
+  available as `lib/mqtt/NativeEventAdapter.js`, read-only).
 - Inputs: original topic, packet, broker receipt timestamp and current
   credential generation; reject stale generation and malformed data.
 - Outputs: immutable, source-tagged status, dock/undock, position, task and
@@ -86,3 +88,13 @@ Camera is a separate later project and is not part of CORE.
 No additional physical end-to-end mower run is expected for purely visual
 follow-up changes; **safety-critical changes still require focused hardware
 acceptance**.
+
+## Initial code landed
+
+- `lib/mqtt/NativeEventAdapter.js`: bounded read-only normalized event stream
+- `drivers/mower/device.js`: minimal import, initialization, observer call and cleanup
+- `tests/pr1-native-event-adapter.test.js`: parsing, duplicate, stale topic/generation, reset tests
+
+**Not yet delivered:** automatic sensor-proof-based gate STOP/Pause/Open/Resume,
+original-app return safety, physical acceptance, complete regression suite and
+Homey publish validation. No claims of safe deployment at this stage.
