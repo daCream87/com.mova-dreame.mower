@@ -52,7 +52,8 @@ test('duplicate active events do not produce second auto resume',()=>{
 test('native maintenance opcode 109 preserves explicit index but cannot authorize movement',()=>{
   const x=fixture();
   const a=x.t.observe({type:'mission_meta',observedAt:100000,source:'siid:2:piid:50',
-    value:{kind:'maintenance',opcode:109,nativePointIndex:4}});
+    value:{kind:'maintenance',opcode:109,nativePointIndex:4,
+      executable:true,reportedActive:true}});
   assert.equal(a.action,'maintenance_task_observed');assert.equal(a.pointIndex,4);
   assert.equal(a.motionAuthorized,false);
   const b=x.t.observe({type:'mission_meta',observedAt:100000,source:'siid:2:piid:50',
