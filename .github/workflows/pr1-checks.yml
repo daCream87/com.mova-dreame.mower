@@ -1,0 +1,36 @@
+name: PR1 MQTT safety regression
+
+on:
+  push:
+    branches:
+      - feature/a2-pr1-mqtt-gate-safety-20261103
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Syntax-check security-critical implementation
+        run: |
+          node --check drivers/mower/device.js
+          node --check lib/garage/GarageSafetyEngine.js
+          node --check lib/mqtt/NativeEventAdapter.js
+          node --check lib/mqtt/NativeDockState.js
+          node --check lib/mqtt/NativeMissionMeta.js
+          node --check lib/mqtt/OriginalAppMissionGuard.js
+      - name: Native MQTT/META/garage test suite
+        run: npm test
+      - name: Validate Homey manifest for publish
+        run: |
+          npm install --global --no-optional homey
+          homey app validate --level publish
