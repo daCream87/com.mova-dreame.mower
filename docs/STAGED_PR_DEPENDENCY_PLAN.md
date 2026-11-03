@@ -5,6 +5,101 @@ Correct Andi's findings in the separate full-integration branch; offer upstream
 small, reviewable increments that integrate cleanly with each other. Never
 substitute a partial upstream contribution for the owner's full version.
 
+## Architecture decision — complete CORE product, minimal upstream delta
+
+**Two deliverables, one implementation:** maintain the user's complete, usable
+CORE integration on the separate integration branch while submitting small,
+cohesive, reviewable feature slices to Andi. We must not create five competing
+implementations or throw away tested workflows. All slices reuse shared,
+versioned contracts and the full integration is assembled/tested after each
+accepted change.
+
+**Baseline invariant:** begin from upstream **1.1.43** and retain its existing
+control methods, status mapping, PRE read-modify-write, capabilities, Flow IDs,
+existing settings, migrations, authentication and poll lifecycle wherever
+possible. Do not replace the full `drivers/mower/device.js` or
+`lib/garage/GarageSafetyEngine.js` with wholesale revised copies.
+
+**Implementation pattern:** extend at narrow, explicit integration seams:
+
+1. **Vendor MQTT adapter** reads and normalizes native events without issuing
+   motion/door commands. Existing upstream polling and MQTT survive; adapter
+   events contain observation timestamps, freshness, map/device identity and
+   source so duplicate/late events cannot authorize movement.
+2. **Garage coordinator** subscribes only while explicitly enabled and
+   passes events to existing garage safety APIs. Every upstream direct
+   Start/Pause/Resume/Stop/Return path preserves its original behavior with
+   Garage Mode OFF. It must be possible to disable the coordinator and recover
+   the exact default upstream behavior.
+3. **MaintenancePointService** owns P1–P5 index, Homey names, the selected
+   primary, native proof of location/arrival, map identity, and native
+   dispatch. A point name never grants physical command authority.
+4. **Read-only MapViewModel + RepairHub** expose the same point and map
+   states to the device, map widget, overview and Repair UI. The first point
+   release must already support practical touch targets, naming and status
+   through the map and Repair; later releases extend existing views instead
+   of shipping parallel editors.
+5. **NativeMapTransaction** is the sole writer for manual and lifecycle
+   exclusion-zone operations. It serializes user edits and background work,
+   checks task-free stationarity/current map/fresh geometry, never deletes
+   based on recycled native ID alone, always attempts the final opcode 201,
+   and verifies actual MAPD/MAPI geometry rather than trusting API ACKs.
+6. **LifecycleScheduler** only declares desired protection/pending outcomes
+   through the native transaction interface; it never edits separately and
+   never treats a failed or deferred return-only activation as protection.
+
+**Compatibility nuance:** with Garage Mode OFF *and no new feature explicitly
+configured*, ordinary commands and Flows must match 1.1.43. If a user opts
+into a non-garage zone lifecycle policy, its documented protection may
+explicitly hold a start until safe geometry is present. This must not leak into
+a user who did not opt in.
+
+**User installation policy:** the full integration branch retains the complete
+feature set and user configuration. Do not suggest installing a half-featured
+upstream PR as a replacement for the user's working stack. Separate feature
+branches do not delete existing user features; they are review deliverables.
+No camera/video dependencies in CORE.
+
+## Andi's review findings — required resolution and owner modules
+
+| Finding | Required change / regression guarantee | Owner |
+|---|---|---|
+| Start fails with Garage Mode OFF | Bypass all garage marker/danger-area proofs and route to upstream Start when optional feature disabled; verify lawn resume and all other ordinary controls | MQTT/Garage + integration |
+| Eight hardcoded garden polygons | Delete source fallback and any persistence path that injects these into unrelated g2408 devices; rely on verified per-device data | Shared map/telemetry |
+| Return-only protection absent | Apply at a genuine safe return checkpoint, verify native geometry, preserve pending/error if unavailable; prevent post-dock phantom success | Lifecycle |
+| Recycled native ID used to delete | Verify current map/geometry/unique identity immediately before deletion; refuse ambiguous or stale MAP.* | NativeMapTransaction |
+| Deadline prevents opcode 201 | Final commit/exit must be attempted in a bounded cleanup path regardless of earlier transaction expiry; report failure | NativeMapTransaction |
+| Reorder migration loses capabilities | Restore missing capability additions non-destructively and preserve old Flow bindings/IDs | Compatibility/shared |
+| onInit fails on garage error/capability UI | Isolate optional component errors; keep standard mower available; catch/report setCapabilityOptions errors | Compatibility/shared |
+| Full route saved every 20 s | Keep bounded in-memory route and checkpoint/delta persistence | Map/telemetry |
+| Endless map refresh retry | Bounded retries, model support checks, backoff and cancellation | NativeMapTransaction + lifecycle |
+| User edit races restore | Single authoritative mutex/queue for all map writes | NativeMapTransaction |
+| Widget accepts lifecycleInternal flag | Server must derive trusted internal authority; reject/remove client-provided privileged flags | Widget API + NativeMapTransaction |
+| Garage disable retains manual latches | Explicit safe state transition and cleanup, without accidentally releasing a hazardous physical movement | MQTT/Garage |
+| Device removal leaks timers | Unified dispose/abort and timer ownership; no callbacks after delete | Shared infrastructure |
+| Timeline events not opt-in | No routine unsolicited notifications; require user opt-in, preserve explicit safety Flow events | MQTT/Garage + UI |
+| turning_method polls PRE and disappears | Cache support capability carefully, avoid mutation based on one short/partial PRE reply | Compatibility/shared |
+| Stale .homeycompose/app.json | Edit source-of-truth compose only; regenerate build output, avoid stale generated copies in PR | Packaging |
+| readme.txt advertises video | Remove video marketing from CORE documentation and Homey store description | Packaging |
+
+### Validation rules
+
+1. Each finding has a **failing regression test first**, then the smallest
+   implementation change that fixes it. Use realistic stale/recycled-ID,
+   MQTT-delay and map-transaction failure fixtures.
+2. Automate `npm test`, `homey app validate --level publish`, and compare
+   capabilities, settings, actions/triggers and garage-OFF control behavior
+   against upstream v1.1.43 for each candidate.
+3. Run an automated upgrade/migration smoke test with old device state.
+   Re-run the full integration suite after applying each extracted slice.
+4. **Real physical mower acceptance cannot be replaced by mocks** for
+   closed-gate interception or native map deletion. Minimize repeated hardware
+   work with one coordinated end-to-end acceptance plus targeted safety
+   retests only when gate/navigation/map-write logic changes.
+5. The full integration is not considered safe to deploy merely because a
+   PR is split or the Homey publish validator passes; close every critical
+   issue, run validation and explicitly record results first.
+
 ## One-line dependency graph
 
 ```
