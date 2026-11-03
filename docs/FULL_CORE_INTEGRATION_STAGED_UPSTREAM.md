@@ -5,8 +5,9 @@ This branch is not the staged small-PR source for direct merging, and the
 unfinished safety remediations are explicitly not certified for live use.
 
 **Safety-first staged sequence:** PR1 MQTT + original-app gate start/return
-protection; PR2 P1–P5 + corresponding map widget and Repair UI; PR3 manual
-native zones; PR4 lifecycle; PR5 remaining integrated overview/recovery.
+protection; PR2 P1–P5 + corresponding map widget and Repair UI; PR3 **combined**
+manual native zones and time/phase lifecycle; PR4 remaining unified
+overview/recovery integration. **Camera only after complete CORE.**
 See [full staged specification](STAGED_PR_DEPENDENCY_PLAN.md).
 
 This branch is the **complete owner-use integration**, preserved separately
@@ -20,7 +21,7 @@ points are corrected and verified.
 - Fix the complete version first; extract reviewable, minimal changes for Andy.
 - Keep the current PR #10 as a historical reference; do not use it for new
   feature commits.
-- Make no camera/video changes here.
+- Make no camera/video changes here, or in any CORE PR. Camera is a separate final optional project.
 
 ## Initial remediation
 - Removed shipped fallback garden polygons for all g2408 mowers.
