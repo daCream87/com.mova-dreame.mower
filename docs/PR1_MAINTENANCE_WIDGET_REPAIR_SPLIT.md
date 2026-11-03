@@ -1,30 +1,35 @@
-# PR1 — P1–P5 maintenance + independent Repair/Widget foundation
+# PR2 — cohesive P1–P5 + maintenance map and Repair surface (DRAFT)
 
-## Purpose
-Start with the existing upstream v1.1.43 behaviour. Preserve every existing
-capability, Flow-card ID, start/pause/resume/return path and Garage Mode setting.
+This branch was first prototyped before the safety-first reorder.
+**PR1 is now MQTT + externally triggered gate safety.** Do not open this
+maintenance PR against upstream until PR1's stable event contract is available.
 
-### Initial safe foundation in this commit
-- Repair hub with independent P1–P5 point naming and a separate reauthentication view
-- Localized DE/EN Repair UI
-- Native point coordinates cannot be created from labels
-- P2–P5 are not marked available or selected until independently verified native coordinates exist
-- No modifications to startRequested(), map transactions, no-go-zone lifecycle, garage safety or MQTT command interception
+## Why map/widget/Repair belong with P1–P5
 
-### Remaining work before asking Andi for review
-- Add independently verified manufacturer-app P2–P5 learning with explicit arming,
-  fresh native task/position/arrival evidence and map-scoped identity; no guesswork
-- Add indexed device buttons and Flow support without removing existing capability IDs
-- Add standalone widget / overview changes in a small, garage-independent way;
-  reuse the upstream map renderer rather than copying the huge PR #10 UI
-- Test all P1–P5 user operations without Garage Mode
-- Execute `npm test`, `homey app validate --level publish`, upgrade/Flow smoke test
-- Confirm **Start/Pause/Resume/Return with Garage Mode OFF match upstream 1.1.43**
+Without map-specific hit areas, selected P2–P5 markers, confirmable positions,
+the device buttons, and a common Repair entry, point naming by itself would be
+incomplete and difficult to use.
 
-### Later PRs (separate from PR1)
-2. MQTT manufacturer-app interception and optional Garage Mode enhancements.
-3. Manual native no-go zones with safe map transactions.
-4. Time/phase lifecycle rules after manual zones are reviewed.
-5. Garage-specific full overview/recovery controls after the garage core is merged.
+## Already present in this draft branch
+- DE/EN Repair hub and P1–P5 naming UI, independent of Garage Mode
+- A minimal point catalog that refuses to treat a name as native proof
+- Non-destructive preservation of upstream capability/Flow behavior
+- Baseline catalog tests committed but **not yet executed**
 
-**DRAFT ONLY** until the remaining tasks and validation are complete.
+## Must be added before review
+- Real native 109 P1–P5 actions with explicit arming and current-map proof
+- Native MQTT task/arrival correlation through PR1's normalized event interface
+- Touchable/renamable P1–P5 overlays in the existing map widget and Repair map
+- P1–P5 Homey tile buttons, compat-safe migrations and Flow card arguments
+- A single map read-only DTO for widget + Repair; omit zone writer/lifecycle
+- Garage-off behavior and all existing Flow IDs/capabilities unchanged
+- Unit/contract tests, publish validation, simulated upgrade, focused acceptance
+
+The existing code is **not** production-ready or a complete P1–P5 contribution.
+
+## Upstream PR sequence
+
+PR1 MQTT early gate interception -> **PR2 this feature** -> PR3 manual native
+zones -> PR4 lifecycle rules -> PR5 overview/recovery refinement.
+
+See integration branch docs/STAGED_PR_DEPENDENCY_PLAN.md for complete contracts.
