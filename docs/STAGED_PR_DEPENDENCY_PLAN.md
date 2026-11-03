@@ -106,9 +106,9 @@ No camera/video dependencies in CORE.
 Upstream v1.1.43
   -> PR1 MQTT native-event adapter + original-app gate safety interlocks
   -> PR2 P1–P5 maintenance + map touch targets + Repair hub + core widgets
-  -> PR3 manual native no-go-zone editing using PR2's map surface
-  -> PR4 no-go-zone time/phase lifecycle using PR3's transaction interface
-  -> PR5 advanced overview/recovery/garage workflows and finishing integration
+  -> PR3 manual native no-go-zone editing + time/phase lifecycle in one cohesive module
+  -> PR4 advanced overview/recovery/garage workflows and finishing CORE integration
+  -> CAMERA later, outside CORE, only after complete CORE approval
 ```
 
 Each PR is made against the latest accepted upstream main, not against the
@@ -158,12 +158,12 @@ A maintenance point is not complete merely because it has a Homey name.
   and Reconnect. The map and Repair UI must function without Garage Mode.
   Garagen-only settings can be mounted in this same menu once PR1 exposes its
   stable configuration and permissions.
-- Reuse core map/Repair contracts in PR3/PR4. Do **not** import the entire
+- Reuse core map/Repair contracts in combined PR3 and PR4. Do **not** import the entire
   2k-line native no-go-zone editor or the full garage recovery dashboard here.
 - Start/Pause/Resume/Stop/Return and existing settings/Flows must still pass
   legacy compatibility checks when Garage Mode is off.
 
-## PR3 — manual native exclusion zones + map edit transaction
+## PR3 — native exclusion zones + safe transactions + time/phase lifecycle (combined)
 
 - Add native manual zone editing to PR2's existing map surface, not another UI.
 - Remove any hardcoded owner garden OBS polygons.
@@ -174,11 +174,9 @@ A maintenance point is not complete merely because it has a Homey name.
 - Serialize all map-edit writes, never trust a successful API ACK as proof.
 - After opcode 200/204, **always attempt final 201**, even on operation timeout
   or error (bounded and surfaced failure).
-- No automatic lifecycle actions yet; widget external flags are not authority
-  to send internal lifecycle writes.
-
-## PR4 — lifecycle policy on the proven manual-zone substrate
-
+- Implement manual edits as the proven foundation of the **same PR3 module**;
+  lifecycle is built on top, never a competing native-map writer.
+- Widget external flags are not authority to send internal lifecycle writes.
 - Native protection by 3/7/14 days, permanent and mission phases.
 - Return-only activation must happen at an actual safe return checkpoint, not
   deferred until the post-docking phase when it can never serve its purpose.
@@ -189,7 +187,7 @@ A maintenance point is not complete merely because it has a Homey name.
 - Garage OFF remains equivalent to upstream for users who did not enable a
   specific lifecycle rule.
 
-## PR5 — advanced unified Overview and recovery (if still unmerged)
+## PR4 — advanced unified Overview and recovery (CORE finishing integration)
 
 - Extend the stable map/widget components introduced in PR2, rather than
   replacing them. Add contextual recovery wizard, manual handover, garage
@@ -230,6 +228,15 @@ A maintenance point is not complete merely because it has a Homey name.
   hardware run for every documentation/appearance change.
 - No physical claim of "always prevents closed-gate contact" without evidence
   for early arrival of MQTT, STOP latency and fail-safe behavior.
+
+## Camera — strictly after complete CORE
+
+Camera/video is **excluded from this full integration branch and all four CORE
+review PRs**. Only after the full CORE feature set is corrected, accepted and
+field-tested can camera work start in a **separate optional, isolated camera
+integration**. Do not include SDK binaries, Tencent XP2P video code, Android
+shims, video assets or camera-related version claims in CORE. Camera permission,
+licensing and dependencies need independent review before any distribution.
 
 ## Current status
 
