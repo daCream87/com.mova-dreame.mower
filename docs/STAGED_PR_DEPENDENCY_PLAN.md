@@ -32,8 +32,11 @@ possible. Do not replace the full `drivers/mower/device.js` or
    Garage Mode OFF. It must be possible to disable the coordinator and recover
    the exact default upstream behavior.
 3. **MaintenancePointService** owns P1–P5 index, Homey names, the selected
-   primary, native proof of location/arrival, map identity, and native
-   dispatch. A point name never grants physical command authority.
+   primary, manufacturer-app MQTT learning, native proof of location/arrival,
+   map identity, and native dispatch. It also owns Fixed/Alternate
+   **maintenance-point Shuffle** with pinned per-mission selection and exactly-
+   once rotation after confirmed completion. A point name never grants
+   physical command authority.
 4. **Read-only MapViewModel + RepairHub** expose the same point and map
    states to the device, map widget, overview and Repair UI. The first point
    release must already support practical touch targets, naming and status
@@ -150,12 +153,26 @@ A maintenance point is not complete merely because it has a Homey name.
   of point index and position, map identity and verified task/arrival.
 - New unknown points require arming and a matching original-app action.
   Names are not coordinates and stale coordinates do not authorize movement.
-- Device buttons, Flow action(s), primary ★ and labels.
+- Device buttons, Flow action(s), primary ★, editable point names and labels.
+- **Wartungspunkt Shuffle/Wechsel belongs entirely to PR2:** Fixed or
+  Alternate across at least two confirmed native P1–P5 points. Select/pin
+  one native target at the start of a garage mission, never advance on MQTT
+  duplicates, retries, manual takeover or failed arrival; commit the next
+  selection only after verified successful completion. Do not change the
+  selected destination halfway through a return.
+- Explicit native learning through an armed original-app action and correlated
+  fresh MQTT task/index/position/arrival proof on the correct map. Deleting a
+  Homey name must not delete or relocate a manufacturer-native waypoint.
 - Extend the **existing map widget** and a small reusable map presenter:
-  visible P1–P5 markers, touch/click/rename, status, optional hidden layers.
+  visible P1–P5 markers, per-point **tappable/clickable edit controls**,
+  learn/rename/remove-name, native confirmation, ★/fixed/alternate status,
+  user-selected target and optional hidden layers.
   Map marker movement must not fabricate vendor-native coordinates.
-- **Repair → Manage mower** includes Maintenance points, maintenance-map view,
-  and Reconnect. The map and Repair UI must function without Garage Mode.
+- **Repair → Manage mower** includes Maintenance points, the touch-editable
+  maintenance-map view, native learning/status/point management, and Reconnect.
+  Its Garage Mode point-rotation settings are shown conditionally.
+  Naming/map/Repair and manual verified P1–P5 commands must work with Garage
+  Mode OFF; only automatic rotation is garage-specific.
   Garagen-only settings can be mounted in this same menu once PR1 exposes its
   stable configuration and permissions.
 - Reuse core map/Repair contracts in combined PR3 and PR4. Do **not** import the entire
@@ -191,8 +208,8 @@ A maintenance point is not complete merely because it has a Homey name.
 
 - Extend the stable map/widget components introduced in PR2, rather than
   replacing them. Add contextual recovery wizard, manual handover, garage
-  return through verified P1–P5, rotation, visual declarations and detailed
-  status. Keep native sensor and manual statements clearly distinct.
+  return through the **PR2-provided verified P1–P5 and rotation service**,
+  visual declarations and detailed status. Keep native sensor and manual statements clearly distinct.
 - Gate-specific controls only with Garage Mode enabled; no hidden motion side
   effects when disabled.
 - Fix stale state latches, widget API authorization, opt-in timeline notices,
@@ -204,8 +221,10 @@ A maintenance point is not complete merely because it has a Homey name.
   map, status, dock, position, command hint). Read-only; no commands.
 - `GarageSafetyCoordinator`: consumes normalized native events, sends
   bounded/guarded mower and gate operations **only if enabled**.
-- `MaintenancePointService`: point index, names, current map, confidence,
-  position proof, native action; exposes read-only marker DTO to map/widget.
+- `MaintenancePointService`: P1–P5 index, editable names, active map, native
+  MQTT learning and arrival proof, verified commands, primary ★, Fixed/Alternate
+  shuffle, exactly-once completion and pinned target per garage mission;
+  exposes read-only marker DTO to map/widget. Implement fully in PR2.
 - `MapViewModel`: single read-only map snapshot for device card, widget and
   Repair; content can grow as new features are accepted.
 - `NativeMapTransaction`: serialized map mutation with physical guard and
