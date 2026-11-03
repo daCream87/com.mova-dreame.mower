@@ -1,0 +1,29 @@
+name: CORE PR1 single-Homey observer checks
+on:
+  push:
+    branches:
+      - integration/a2-core-pr1-observer-single-homey-20261103
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Check syntax
+        run: |
+          node --check drivers/mower/device.js
+          node --check lib/mqtt/NativeMissionMeta.js
+          node --check lib/mqtt/NativeCommandStateTracker.js
+      - name: Test full CORE integration
+        run: npm test
+      - name: Homey publish manifest validation
+        run: |
+          npm install --global --no-optional homey
+          homey app validate --level publish
