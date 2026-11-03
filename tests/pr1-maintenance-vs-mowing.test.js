@@ -8,14 +8,14 @@ const {describeTask}=require('../lib/mqtt/NativeMissionMeta');
 
 function harness(){
  let now=200000; const tracker=new Tracker({now:()=>now});
- const next=(value,advance=0)=>{
+ const next=(value,advance=0,context={})=>{
    now+=advance;
    return tracker.observe({type:'mission_meta',source:'siid:2:piid:50',
-     observedAt:now,value});
+     observedAt:now,value},context);
  };
  const task=(index,more={})=>next(describeTask({t:'TASK',d:{o:109,exe:true,status:true,
    ...(index===null?{}:{point:[index]}),...more}}));
- const status=(phase,advance=20,ctx={})=>next({phase},advance);
+ const status=(phase,advance=20,ctx={})=>next({phase},advance,ctx);
  return{tracker,task,status,next};
 }
 test('P1 and P2 are distinct native point identities; status mowing is maintenance',()=>{
@@ -80,7 +80,7 @@ test('return/completion close maintenance classification window',()=>{
 });
 test('stale TASK109 cannot classify a later new mowing mission as maintenance',()=>{
  const x=harness();x.task(2);
- assert.equal(x.status('mowing',120001).action,'activity_observed');
+ assert.equal(x.status('mowing',1200001).action,'activity_observed');
  assert.equal(x.tracker.activeMaintenanceContext(),null);
 });
 test('regression: generic external mowing callback is suppressed by verified TASK109',()=>{
