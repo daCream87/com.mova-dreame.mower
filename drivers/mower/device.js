@@ -14,6 +14,8 @@ const { DurableRoute } = require('../../lib/map/DurableRoute');
 const { isSessionTransientStatus, isRouteSessionActive, isChargeBreakContinuation, compactRouteTrail } = require('../../lib/map/RouteSessionPolicy');
 const { renderMapPng } = require('../../lib/widgets/MapPngRenderer');
 const { canonicalNativePolygon } = require('../../lib/map/native-zone-geometry');
+const NativeCommandStateTracker = require('../../lib/mqtt/NativeCommandStateTracker');
+const { describeTask, describeControl, describeNativeStatus } = require('../../lib/mqtt/NativeMissionMeta');
 
 function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
 function userText(homey, key, tokens = {}, fallback = key) {
@@ -1505,6 +1507,9 @@ class MowerDevice extends Homey.Device {
     this._mqttAuthFailed  = false;
     this._mqttAuthRetried = false;
     this._mqttToken       = null;
+    // PR1 passive diagnostics only: full CORE garage owner stays authoritative.
+    this._nativeCommandTracker = new NativeCommandStateTracker();
+    this._recentNativeActionSignals = [];
 
     // Native A2 dock-state telemetry. Besides diagnostics this is now used as a
     // narrow-garage safety signal: IN_STATION + undocking is the earliest precise
@@ -1528,6 +1533,8 @@ class MowerDevice extends Homey.Device {
   }
 
   async onDeleted() {
+    this._nativeCommandTracker?.reset();
+    this._recentNativeActionSignals = [];
     this._stopPolling();
     this._disconnectMqtt();
     this._cancelNativeMaintenanceLearnBackup('device_deleted');
@@ -6681,6 +6688,8 @@ class MowerDevice extends Homey.Device {
   _destroyMqttClient() {
     this._mqttGeneration = (this._mqttGeneration || 0) + 1;
     this._mqttAuthFailed = false;
+    this._nativeCommandTracker?.reset();
+    this._recentNativeActionSignals = [];
     if (this._mqttClient) {
       try { this._mqttClient.end(true); } catch (_) { /* force-close errors are irrelevant */ }
       this._mqttClient = null;
@@ -6761,6 +6770,55 @@ class MowerDevice extends Homey.Device {
     // Do not infer command latency from an undocumented vendor timestamp.
     // Record only a raw header timestamp when present, for later vendor validation.
     const vendorStamp = payload?.timestamp ?? payload?.ts ?? parsed?.timestamp ?? parsed?.ts ?? null;
+
+    // Passive PR1 classification only. Do NOT register a second command
+    // owner: existing CORE handles PAUSE/STOP, garage gate and task dispatch.
+    // The observations can be used by PR2 without touching motion logic.
+    if (method === 'properties_changed' && Array.isArray(params)
+        && this._nativeCommandTracker) {
+      try {
+        const at = Number(mqttArrival?.receivedAt) || Date.now();
+        for (const prop of params.slice(0, 200)) {
+          if (!prop || typeof prop !== 'object') continue;
+          const siid = Number(prop.siid), piid = Number(prop.piid);
+          if (siid !== 2) continue;
+          let descriptions = [];
+          if (piid === 50) {
+            const found = describeTask(prop.value);
+            if (found) descriptions = [found];
+          } else if (piid === 56) {
+            descriptions = describeControl(prop.value);
+          } else if (piid === 1) {
+            const found = describeNativeStatus(prop.value);
+            if (found) descriptions = [found];
+          }
+          const dock = this._mowerBinaryDiag;
+          const age = Date.now() - Number(this._mowerBinaryDiagAt || 0);
+          for (const value of descriptions) {
+            const action = this._nativeCommandTracker.observe({
+              type: 'mission_meta', source: 'siid:' + siid + ':piid:' + piid,
+              value, observedAt: at,
+            }, {
+              physicalOutside: this._garageSafety?._missionOutside === true
+                && this._garageSafety?.isDockedHomeStatus?.() === false,
+              nativeDockState: dock?.dockingState || null,
+              nativeDockAgeMs: age,
+              garageMissionRecovering: !!this._garageSafety?._externalStartRecoveryActive,
+            });
+            if (action) {
+              this._recentNativeActionSignals.push(action);
+              if (this._recentNativeActionSignals.length > 32)
+                this._recentNativeActionSignals.splice(0, this._recentNativeActionSignals.length - 32);
+              this.log('[mqtt-action-observer]', action.action,
+                action.pointIndex === null ? 'point_unknown' : 'P' + action.pointIndex);
+            }
+          }
+        }
+      } catch (err) {
+        // Diagnostics must never block the existing MQTT safety handler.
+        this.error('[mqtt-action-observer] observation failed:', err.message);
+      }
+    }
 
     if (method === 'properties_changed' && Array.isArray(params)) {
       for (const prop of params) {
