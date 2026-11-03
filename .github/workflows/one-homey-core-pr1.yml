@@ -24,6 +24,7 @@ jobs:
       - name: Test full CORE integration
         run: npm test
       - name: Homey publish manifest validation
+        if: ${{ always() }}
         run: |
           npm install --global --no-optional homey
           homey app validate --level publish
