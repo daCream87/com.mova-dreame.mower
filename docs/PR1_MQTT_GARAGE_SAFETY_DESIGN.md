@@ -79,8 +79,9 @@ A/B safety line, sensor or proprietary coordinates.
 
 PR2 consumes the normalized event adapter to learn P2–P5 task/arrival
 observations. PR2 supplies its own map touch areas, point labels/geometry
-proof and Repair UI. PR3/PR4 then extend the **same** map presenter and
-safe native map transaction coordinator.
+proof and Repair UI. The combined PR3 then extends the **same** map presenter and
+safe native map transaction coordinator. PR4 finishes the CORE overview.
+Camera is a separate later project and is not part of CORE.
 
 No additional physical end-to-end mower run is expected for purely visual
 follow-up changes; **safety-critical changes still require focused hardware
