@@ -8622,22 +8622,9 @@ class MowerDevice extends Homey.Device {
     return [...byId.values()];
   }
 
-  _knownA2ObstacleFallback(activeMap) {
-    // Last verified non-empty OBS payload received from this paired A2. It is
-    // only a cold-start safety net for the g2408's map 0 until Dreame returns
-    // OBS again; every later non-empty live payload replaces and persists it.
-    if (Number(activeMap) !== 0 || !/g2408/i.test(String(this._devModel || ''))) return null;
-    return { idx: 0, obstacle: [
-      { data: [[-328,-55],[-338,-65],[-353,-50]], id: 1, type: 0 },
-      { data: [[-208,-40],[-178,-10],[-113,-10],[-138,-25],[-148,-55],[-128,-65],[-113,-45],[-63,-60],[-53,-80],[-98,-85],[-128,-70],[-173,-85],[-178,-65]], id: 2, type: 0 },
-      { data: [[-608,-45],[-568,-30],[-458,-30],[-428,-65],[-438,-80],[-488,-60],[-533,-85],[-593,-85]], id: 3, type: 0 },
-      { data: [[-778,-100],[-798,-75],[-788,-60]], id: 4, type: 0 },
-      { data: [[-673,-230],[-683,-210],[-668,-215]], id: 5, type: 0 },
-      { data: [[-773,-260],[-783,-250],[-778,-205],[-768,-205],[-763,-230]], id: 6, type: 0 },
-      { data: [[-758,-310],[-763,-295],[-743,-285],[-743,-305]], id: 7, type: 0 },
-      { data: [[-558,-385],[-583,-350],[-568,-325],[-578,-200],[-523,-200],[-508,-230],[-518,-260],[-508,-380]], id: 8, type: 0 },
-    ] };
-  }
+  // Never fabricate obstacle geometry for a mower from another installation.
+  // Only verified OBS/AIOBS telemetry or a device-specific saved cache may
+  // contribute pylons to the display.
 
   async _refreshObstacleTelemetry(did, reason = 'poll') {
     if (!this._api || this._obsFetchInFlight || this._pylonNativeWriteBusy) return false;
@@ -8689,17 +8676,6 @@ class MowerDevice extends Homey.Device {
         this._obstacleDiagUpdatedAt = Date.now();
         this.log(`[pylon-diag] empty OBS reply ignored; retaining ${cachedPylons.length} cached pylons reason=${reason}`);
         return true;
-      }
-
-      if (!incomingPylons.length && !cachedPylons.length) {
-        const fallback = this._knownA2ObstacleFallback(active);
-        if (fallback) {
-          this._cachedObstacles = { aiobs, obs: fallback, obsIndex: 0 };
-          this._obstacleDiagUpdatedAt = Date.now();
-          await Promise.resolve(this.setStoreValue('obstacle_payload_cache_v1', this._cachedObstacles)).catch(() => {});
-          this.log('[pylon-diag] empty OBS reply; restored 8 last-known A2 pylons and persisted cache');
-          return true;
-        }
       }
 
       this._cachedObstacles = incoming;
