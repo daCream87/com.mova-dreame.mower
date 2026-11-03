@@ -6,6 +6,7 @@ const mqtt   = require('mqtt');
 const Homey = require('homey');
 const MovaApi = require('../../lib/MovaApi');
 const NativeEventAdapter = require('../../lib/mqtt/NativeEventAdapter');
+const OriginalAppMissionGuard = require('../../lib/mqtt/OriginalAppMissionGuard');
 const GarageSafetyEngine = require('../../lib/garage/GarageSafetyEngine');
 const { resolveMaintenancePointIndex } = require('../../lib/garage/MaintenancePointResolver');
 
@@ -1219,6 +1220,7 @@ class MowerDevice extends Homey.Device {
     // PR1 native observation foundation. No garage commands are dispatched
     // from this observer. Original MQTT handlers remain source-compatible.
     this._nativeEventAdapter = new NativeEventAdapter();
+    this._externalMissionGuard = new OriginalAppMissionGuard(this);
     this._lastNativeEvents = [];
 
     this._startPolling();
@@ -1226,12 +1228,15 @@ class MowerDevice extends Homey.Device {
   }
 
   async onDeleted() {
+    this._externalMissionGuard?.dispose();
     this._stopPolling();
     this._disconnectMqtt();
   }
 
   async onSettings({ changedKeys, newSettings }) {
     this.log('[settings] changed:', changedKeys.join(', '));
+    if (changedKeys.includes('garage_mode_enabled') && newSettings.garage_mode_enabled === false)
+      this._externalMissionGuard?.deactivate();
     const did = this.getData().id;
 
     if (this._garageSafety && typeof this._garageSafety.onSettings === 'function') {
@@ -4075,6 +4080,7 @@ class MowerDevice extends Homey.Device {
   _destroyMqttClient() {
     this._mqttGeneration = (this._mqttGeneration || 0) + 1;
     this._mqttAuthFailed = false;
+    this._nativeEventAdapter?.reset();
     if (this._mqttClient) {
       try { this._mqttClient.end(true); } catch (_) { /* force-close errors are irrelevant */ }
       this._mqttClient = null;
@@ -4108,6 +4114,16 @@ class MowerDevice extends Homey.Device {
         generation: this._mqttGeneration, currentGeneration: this._mqttGeneration,
         receivedAt: Date.now(),
       });
+      // Forward only normalized observations to the optional garage owner.
+      // All originals of MQTT handling below remain in their upstream order.
+      for (const event of this._lastNativeEvents) {
+        if (event.type === 'dock_state') this._externalMissionGuard?.noteNativeDock(event);
+        else if (event.type === 'task_raw') this._externalMissionGuard?.noteTask(event);
+        else if (event.type === 'native_undock_intent') this._externalMissionGuard?.onUndockIntent(event);
+        else if (event.type === 'status_raw' && Number(event.value) === 5) {
+          this._externalMissionGuard?.onReturnStatus();
+        }
+      }
     }
 
     if (parsed.data?.method === 'properties_changed' && Array.isArray(parsed.data.params)) {
@@ -4134,6 +4150,14 @@ class MowerDevice extends Homey.Device {
           }
         } else if (prop.siid === 2 && prop.piid === 1) {
           this.log(`[mqtt] status: ${prop.value}`);
+          // Match the status-machine edge on native push, instead of waiting
+          // for the next HTTP poll. Garage Mode OFF keeps upstream behaviour.
+          const nativePushStatus = STATUS_MAP[Number(prop.value)];
+          if (this._externalMissionGuard?.enabled()
+              && (nativePushStatus === 'mowing' || nativePushStatus === 'returning')) {
+            await this._applyStatus(nativePushStatus).catch((e) =>
+              this.error('[mqtt] native status push:', e.message));
+          }
         } else if (prop.siid === 2 && prop.piid === 2) {
           this.log(`[mqtt] error_code: ${prop.value}`);
           this._mqttErrorCode = prop.value;
