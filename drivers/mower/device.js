@@ -3656,10 +3656,12 @@ class MowerDevice extends Homey.Device {
     return pointIndex;
   }
 
-  async _goToMaintenancePointGuarded(label = 'maintenance') {
+  async _goToMaintenancePointGuarded(label = 'maintenance', selectedPoint = 1) {
     const did = this.getData().id;
     const mapIdx = this._activeMapIndex ?? 0;
-    const pointIndex = this._maintenancePointIndex();
+    // Leave the established garage maintenance route pinned to P1.
+    const pointIndex = this.getSetting('garage_mode_enabled')
+      ? this._maintenancePointIndex() : selectedPoint;
     this._nativeMaintenanceCommandAt = Date.now();
     this._pendingNativeMaintenanceArrival = null;
     this._nativeMaintenanceArrivalLatched = false;
@@ -3668,9 +3670,14 @@ class MowerDevice extends Homey.Device {
     return this._safeWrite(`${label}:maintenance:${pointIndex}`, () => this._api.goToMaintenancePoint(did, mapIdx, pointIndex));
   }
 
-  async cmdGoToMaintenancePoint() {
-    this.log('[cmd] goToMaintenancePoint');
-    await this._garageSafety.maintenanceRequested('flow_maintenance', async () => this._goToMaintenancePointGuarded('flow_maintenance'));
+  async cmdGoToMaintenancePoint(selection = 1) {
+    const point = selection == null || selection === '' ? 1 : Number(selection);
+    if (!Number.isInteger(point) || point < 1 || point > 5) {
+      throw new Error('Maintenance point must be P1–P5.');
+    }
+    this.log(`[cmd] goToMaintenancePoint P${point}`);
+    await this._garageSafety.maintenanceRequested('flow_maintenance',
+      async () => this._goToMaintenancePointGuarded('flow_maintenance', point));
   }
 
   async cmdSetEfficiencyMode(mode) {
