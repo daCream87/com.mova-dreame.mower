@@ -7,6 +7,7 @@ const Homey = require('homey');
 const MovaApi = require('../../lib/MovaApi');
 const GarageSafetyEngine = require('../../lib/garage/GarageSafetyEngine');
 const { NativeUndockingMilestone } = require('../../lib/garage/NativeUndockingMilestone');
+const { CoreExternalStartRecovery } = require('../../lib/garage/CoreExternalStartRecovery');
 const { resolveMaintenancePointIndex } = require('../../lib/garage/MaintenancePointResolver');
 
 function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
@@ -582,6 +583,7 @@ class MowerDevice extends Homey.Device {
     this._garageFastPollTimer = null;
     this._garageFastPollBusy = false;
     this._nativeUndockMilestone = new NativeUndockingMilestone({ log: (...parts) => this.log(...parts) });
+    this._coreExternalStart = null;
     // Keep asynchronous garage capability updates in the same order.
     this._garageVisibilityQueue = Promise.resolve();
     this._garageVisibilityTarget = null;
@@ -3386,7 +3388,9 @@ class MowerDevice extends Homey.Device {
     await this._setCap('mower_status', displayStatus);
     const resumeGuardActive = this._resumeGuardUntil && Date.now() < this._resumeGuardUntil;
     if (status === 'mowing' && prev !== 'mowing' && !resumeGuardActive) {
-      this._garageSafety.onExternalMowingDetected().catch((e) => this.error('[garage] external start guard:', e.message));
+      if (!this._coreExternalStart?.active) {
+        this._garageSafety.onExternalMowingDetected().catch((e) => this.error('[garage] external start guard:', e.message));
+      }
     } else if (status === 'mowing' && prev !== 'mowing' && resumeGuardActive) {
       this.log('[garage] mowing after resume accepted without garage start flow');
     }
@@ -4223,10 +4227,23 @@ class MowerDevice extends Homey.Device {
     }
 
     if (parsed.data?.method === 'properties_changed' && Array.isArray(parsed.data.params)) {
+      // Lazy init avoids lifecycle race with GarageSafetyEngine construction.
+      if (!this._coreExternalStart && this._garageSafety) {
+        this._coreExternalStart = new CoreExternalStartRecovery({
+          device: this, garage: this._garageSafety,
+          log: (...args) => this.log(...args),
+        });
+      }
       for (const prop of parsed.data.params) {
         // Core 1.2.184 native 1:1 station milestone (read-only).
         // Never trigger a motor command from this observation-only stage.
         if (Number(prop.siid) === 1 && Number(prop.piid) === 1) {
+          const nativeEdge = this._coreExternalStart?.observeNative(prop.value);
+          if (nativeEdge?.type === 'native-undock-edge' && this._coreExternalStart?.eligible()) {
+            // Invoke synchronously: intercept() owns the start before first await.
+            this._coreExternalStart.intercept('mqtt_native_1_1').catch((e) =>
+              this.error('[core-external-start] intercept failed:', e.message));
+          }
           this._nativeUndockMilestone?.observe(prop.value, {
             garageEnabled: !!this._garageSafety?.enabled(),
             doorState: this._garageSafety?.doorState?.() || 'unknown',
@@ -4252,6 +4269,10 @@ class MowerDevice extends Homey.Device {
           } else {
             this.log(`[mqtt] siid:1 piid:4 value: ${JSON.stringify(val)?.substring(0, 200)}`);
           }
+        } else if (prop.siid === 2 && prop.piid === 50) {
+          // Original manufacturer TASK descriptor: preserve opcode and targets
+          // before PAUSE/STOP may replace the pending command.
+          this._coreExternalStart?.observeTask(prop.value);
         } else if (prop.siid === 2 && prop.piid === 1) {
           this.log(`[mqtt] status: ${prop.value}`);
         } else if (prop.siid === 2 && prop.piid === 2) {
