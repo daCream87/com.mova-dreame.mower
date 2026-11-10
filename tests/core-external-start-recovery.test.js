@@ -77,6 +77,7 @@ function rig({ task = { o: 100, exe: true, status: true }, sensor = true,
   assert.equal(await r.controller.intercept(), false);
   assert.equal(r.calls.includes('start'), false);
   assert.equal(r.calls.includes('warning'), true);
+  assert.equal(r.garage._homeCloseArmed, false, 'keep gate open for manual P? reissue');
   assert.equal(r.controller.phase, 'OPERATOR_CHECK_REQUIRED');
 
   r = rig({ task: null });
