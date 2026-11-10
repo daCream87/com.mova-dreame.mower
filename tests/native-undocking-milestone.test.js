@@ -1,0 +1,38 @@
+'use strict';
+const assert = require('node:assert/strict');
+const { NativeUndockingMilestone, decodeNativeDockFrame } = require('../lib/garage/NativeUndockingMilestone');
+
+const frame = (u, dock = 0) => {
+  const bytes = Array(20).fill(0);
+  bytes[0] = 0xce; bytes[19] = 0xce;
+  bytes[14] = ((dock & 7) << 2) | ((u & 1) << 6);
+  bytes[11] = 0x94;
+  return bytes;
+};
+assert.equal(decodeNativeDockFrame(frame(0)).dockingState, 'IN_STATION');
+assert.equal(decodeNativeDockFrame(frame(1)).undocking, 1);
+assert.equal(decodeNativeDockFrame(frame(0, 1)).dockingState, 'OUT_OF_STATION');
+assert.equal(decodeNativeDockFrame([]), null);
+let now = 100000;
+const events = [];
+const observer = new NativeUndockingMilestone({ now: () => now, log: (...parts) => events.push(parts) });
+assert.equal(observer.observe(frame(0)).type, 'sample');
+now += 100;
+let edge = observer.observe(frame(1), { garageEnabled: true, doorState: 'closed' });
+assert.equal(edge.type, 'native-undock-edge');
+assert.equal(edge.mode, 'observe-only');
+assert.equal(edge.garageEnabled, true);
+assert.equal(edge.doorState, 'closed');
+assert.equal(events.length, 1);
+assert.equal(observer.observe(frame(1)).type, 'sample', 'repeated u1 must not retrigger');
+now += 31000;
+observer.observe(frame(0));
+now += 31000;
+assert.equal(observer.observe(frame(1)).type, 'sample', 'stale station bit must not trigger');
+now += 20;
+observer.observe(frame(0));
+now += 20;
+edge = observer.observe(frame(1));
+assert.equal(edge.type, 'native-undock-edge', 'fresh true edge must trigger');
+assert.equal(events.length, 2);
+console.log('PASS native undocking milestone decoding and edge filters');
