@@ -1115,6 +1115,19 @@
           "value": false
         },
         {
+          "id": "garage_external_core_intercept_enabled",
+          "type": "checkbox",
+          "label": {
+            "en": "Experimental: intercept original-app start (MOVA A2)",
+            "de": "Experimentell: Start aus Original-App abfangen (MOVA A2)"
+          },
+          "value": false,
+          "hint": {
+            "en": "Opt-in hardware trial only: needs a healthy real door sensor. Intercepts native undocking with PAUSE/STOP and restores the exact original task only after native dock and gate proofs. Do not enable without supervision.",
+            "de": "Nur für beaufsichtigte Hardwaretests: benötigt einen funktionierenden echten Torsensor. Fängt natives Undocking per PAUSE/STOP ab; startet den Originalauftrag nur nach Stations- und Torbestätigung erneut. Nicht unbeaufsichtigt aktivieren."
+          }
+        },
+        {
           "id": "garage_sensor_min_battery",
           "type": "number",
           "label": {
