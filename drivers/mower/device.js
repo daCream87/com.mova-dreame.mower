@@ -3388,7 +3388,8 @@ class MowerDevice extends Homey.Device {
     await this._setCap('mower_status', displayStatus);
     const resumeGuardActive = this._resumeGuardUntil && Date.now() < this._resumeGuardUntil;
     if (status === 'mowing' && prev !== 'mowing' && !resumeGuardActive) {
-      if (!this._coreExternalStart?.active) {
+      if (!this._coreExternalStart?.active
+          && !(this._coreExternalStart?.armed && Date.now() < this._coreExternalStart.abortUntil)) {
         this._garageSafety.onExternalMowingDetected().catch((e) => this.error('[garage] external start guard:', e.message));
       }
     } else if (status === 'mowing' && prev !== 'mowing' && resumeGuardActive) {
@@ -4247,6 +4248,11 @@ class MowerDevice extends Homey.Device {
             // Invoke synchronously: intercept() owns the start before first await.
             this._coreExternalStart.intercept('mqtt_native_1_1').catch((e) =>
               this.error('[core-external-start] intercept failed:', e.message));
+          } else if (nativeEdge?.type === 'native-undock-edge'
+              && this._coreExternalStart?.armed
+              && Date.now() < this._coreExternalStart.abortUntil) {
+            this._coreExternalStart.suppressAbortedReplay('mqtt_native_1_1').catch((e) =>
+              this.error('[core-external-start] replay protection failed:', e.message));
           }
           this._nativeUndockMilestone?.observe(prop.value, {
             garageEnabled: !!this._garageSafety?.enabled(),
