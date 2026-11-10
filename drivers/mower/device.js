@@ -583,7 +583,7 @@ class MowerDevice extends Homey.Device {
     this._garageFastPollTimer = null;
     this._garageFastPollBusy = false;
     this._nativeUndockMilestone = new NativeUndockingMilestone({ log: (...parts) => this.log(...parts) });
-    this._coreExternalStart = null;
+
     // Keep asynchronous garage capability updates in the same order.
     this._garageVisibilityQueue = Promise.resolve();
     this._garageVisibilityTarget = null;
@@ -655,6 +655,10 @@ class MowerDevice extends Homey.Device {
     this._cachedArMapPos         = null; // last parsed ARMap robot/charger position from binary blob
     this._mqttErrorCode          = null; // latest native MQTT device/error code
     this._garageSafety          = new GarageSafetyEngine(this);
+    this._coreExternalStart = new CoreExternalStartRecovery({
+      device: this, garage: this._garageSafety,
+      log: (...args) => this.log(...args),
+    });
     this._commandGeneration      = 0;
     this._resumeGuardUntil       = 0; // suppress garage external-start detection after Pause→Resume
     this._resumeSemanticUntil    = 0; // RC112: treat stale cloud 'paused' as mowing after an explicit resume
@@ -679,6 +683,7 @@ class MowerDevice extends Homey.Device {
     }
 
     await this._garageSafety.init();
+    await this._coreExternalStart.restoreAbort();
 
     // Homey persists momentary command capabilities. Clear stale button values
     // before listeners are registered, especially cmd_maintenance_point after a
@@ -4239,14 +4244,6 @@ class MowerDevice extends Homey.Device {
     }
 
     if (parsed.data?.method === 'properties_changed' && Array.isArray(parsed.data.params)) {
-      // Lazy init avoids lifecycle race with GarageSafetyEngine construction.
-      if (!this._coreExternalStart && this._garageSafety) {
-        this._coreExternalStart = new CoreExternalStartRecovery({
-          device: this, garage: this._garageSafety,
-          log: (...args) => this.log(...args),
-        });
-        await this._coreExternalStart.restoreAbort();
-      }
       for (const prop of parsed.data.params) {
         // Core 1.2.184 native 1:1 station milestone (read-only).
         // Never trigger a motor command from this observation-only stage.
