@@ -6,6 +6,7 @@ const mqtt   = require('mqtt');
 const Homey = require('homey');
 const MovaApi = require('../../lib/MovaApi');
 const GarageSafetyEngine = require('../../lib/garage/GarageSafetyEngine');
+const { NativeUndockingMilestone } = require('../../lib/garage/NativeUndockingMilestone');
 const { resolveMaintenancePointIndex } = require('../../lib/garage/MaintenancePointResolver');
 
 function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
@@ -580,6 +581,7 @@ class MowerDevice extends Homey.Device {
     this._pollTimer            = null;
     this._garageFastPollTimer = null;
     this._garageFastPollBusy = false;
+    this._nativeUndockMilestone = new NativeUndockingMilestone({ log: (...parts) => this.log(...parts) });
     // Keep asynchronous garage capability updates in the same order.
     this._garageVisibilityQueue = Promise.resolve();
     this._garageVisibilityTarget = null;
@@ -4222,6 +4224,14 @@ class MowerDevice extends Homey.Device {
 
     if (parsed.data?.method === 'properties_changed' && Array.isArray(parsed.data.params)) {
       for (const prop of parsed.data.params) {
+        // Core 1.2.184 native 1:1 station milestone (read-only).
+        // Never trigger a motor command from this observation-only stage.
+        if (Number(prop.siid) === 1 && Number(prop.piid) === 1) {
+          this._nativeUndockMilestone?.observe(prop.value, {
+            garageEnabled: !!this._garageSafety?.enabled(),
+            doorState: this._garageSafety?.doorState?.() || 'unknown',
+          });
+        }
         if (prop.siid === 1 && prop.piid === 4) {
           const val = prop.value;
           const buf = Array.isArray(val) ? Buffer.from(val) : null;
