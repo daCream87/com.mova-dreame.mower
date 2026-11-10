@@ -111,5 +111,16 @@ function rig({ task = { o: 100, exe: true, status: true }, sensor = true,
   const p = r.controller.intercept();
   assert.equal(r.controller.eligible(), false, 'parallel event must not re-enter');
   await p;
-  console.log('PASS: 10 native external-start recovery tests');
+  r = rig({ stopRejected: true });
+  await r.controller.intercept();
+  // A failed recovery cannot re-open the gate on an old native replay.
+  r.controller.observeNative(frame(0));
+  const replay = r.controller.observeNative(frame(1));
+  assert.equal(replay.type, 'native-undock-edge');
+  const gateCallsBefore = r.calls.filter((v) => v === 'gate:open').length;
+  await r.controller.suppressAbortedReplay();
+  assert.equal(r.calls.filter((v) => v === 'gate:open').length, gateCallsBefore);
+  assert.equal(r.calls.filter((v) => v === 'pause').length, 2);
+
+  console.log('PASS: 11 native external-start recovery tests');
 })().catch((e) => { console.error(e); process.exitCode = 1; });
