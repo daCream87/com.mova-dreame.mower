@@ -3388,7 +3388,14 @@ class MowerDevice extends Homey.Device {
     await this._setCap('mower_status', displayStatus);
     const resumeGuardActive = this._resumeGuardUntil && Date.now() < this._resumeGuardUntil;
     if (status === 'mowing' && prev !== 'mowing' && !resumeGuardActive) {
-      if (!this._coreExternalStart?.active
+      if (this._coreExternalStart?.armed && this._garageSafety?.enabled?.()
+          && !this._garageSafety?._outbound && !this._garageSafety?._missionOutside
+          && !this._coreExternalStart?.active) {
+        // No late gate opening on a generic cloud mowing status. CORE's native
+        // 1:1 edge is the only route to automated gate/mission recovery.
+        this._coreExternalStart.suppressMissedNativeStart(prev).catch((e) =>
+          this.error('[core-external-start] missing-native fallback failed:', e.message));
+      } else if (!this._coreExternalStart?.active
           && !(this._coreExternalStart?.armed && Date.now() < this._coreExternalStart.abortUntil)) {
         this._garageSafety.onExternalMowingDetected().catch((e) => this.error('[garage] external start guard:', e.message));
       }
@@ -4238,6 +4245,7 @@ class MowerDevice extends Homey.Device {
           device: this, garage: this._garageSafety,
           log: (...args) => this.log(...args),
         });
+        await this._coreExternalStart.restoreAbort();
       }
       for (const prop of parsed.data.params) {
         // Core 1.2.184 native 1:1 station milestone (read-only).
