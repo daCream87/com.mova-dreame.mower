@@ -1115,19 +1115,6 @@
           "value": false
         },
         {
-          "id": "garage_external_core_intercept_enabled",
-          "type": "checkbox",
-          "label": {
-            "en": "Experimental: intercept original-app start (MOVA A2)",
-            "de": "Experimentell: Start aus Original-App abfangen (MOVA A2)"
-          },
-          "value": false,
-          "hint": {
-            "en": "Opt-in hardware trial only: needs a healthy real door sensor. Intercepts native undocking with PAUSE/STOP and restores the exact original task only after native dock and gate proofs. Do not enable without supervision.",
-            "de": "Nur für beaufsichtigte Hardwaretests: benötigt einen funktionierenden echten Torsensor. Fängt natives Undocking per PAUSE/STOP ab; startet den Originalauftrag nur nach Stations- und Torbestätigung erneut. Nicht unbeaufsichtigt aktivieren."
-          }
-        },
-        {
           "id": "garage_sensor_min_battery",
           "type": "number",
           "label": {
@@ -1382,8 +1369,8 @@
           },
           "value": false,
           "hint": {
-            "en": "Shows normal, user-relevant garage events in the Homey timeline.",
-            "de": "Zeigt normale, benutzerrelevante Garagenereignisse in der Homey-Zeitleiste."
+            "en": "Normal garage events in the Homey timeline, independent of Garage Mode.",
+            "de": "Normale Garagenereignisse in der Homey-Zeitleiste, unabhängig vom Garagenmodus."
           }
         },
         {
@@ -1395,8 +1382,8 @@
           },
           "value": false,
           "hint": {
-            "en": "Adds detailed internal garage states and diagnostic decisions to the timeline. Requires garage logging to be enabled.",
-            "de": "Ergänzt detaillierte interne Garagenzustände und Diagnoseentscheidungen in der Zeitleiste. Garagen-Logging muss dafür aktiviert sein."
+            "en": "Diagnostic logs in the Homey timeline and Windows test logger, independent of Garage Mode. Does not require normal garage logging.",
+            "de": "Diagnoseprotokolle in der Homey-Zeitleiste und im Windows-Testlogger, unabhängig vom Garagenmodus. Normales Garagen-Logging muss nicht aktiviert sein."
           }
         },
         {
