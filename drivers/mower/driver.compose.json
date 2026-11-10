@@ -1369,8 +1369,8 @@
           },
           "value": false,
           "hint": {
-            "en": "Normal garage events in the Homey timeline, independent of Garage Mode.",
-            "de": "Normale Garagenereignisse in der Homey-Zeitleiste, unabhängig vom Garagenmodus."
+            "en": "Normal garage events in Homey timeline only while Garage Mode is enabled.",
+            "de": "Normale Garagenereignisse in der Homey-Zeitleiste nur bei eingeschaltetem Garagenmodus."
           }
         },
         {
