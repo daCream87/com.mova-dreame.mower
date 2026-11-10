@@ -3394,7 +3394,11 @@ class MowerDevice extends Homey.Device {
     } else if (status === 'mowing' && prev !== 'mowing' && resumeGuardActive) {
       this.log('[garage] mowing after resume accepted without garage start flow');
     }
-    this._garageSafety.onStatus(status, prev).catch((e) => this.error('[garage] status hook:', e.message));
+    // Native recovery owns outbound state until gate and station checks complete.
+    // Do not let stale dock/charging telemetry schedule an overlapping CLOSE.
+    if (!this._coreExternalStart?.active) {
+      this._garageSafety.onStatus(status, prev).catch((e) => this.error('[garage] status hook:', e.message));
+    }
 
     this._trgStatusChanged
       .trigger(this, { status }, {})
