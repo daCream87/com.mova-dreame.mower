@@ -3384,6 +3384,23 @@ class MowerDevice extends Homey.Device {
     await this._setCap('mower_status', displayStatus);
     const resumeGuardActive = this._resumeGuardUntil && Date.now() < this._resumeGuardUntil;
     if (status === 'mowing' && prev !== 'mowing' && !resumeGuardActive) {
+      // Passive diagnostic marker for supervised external-start tests.
+      // This log is NOT a pre-undocking interlock and never changes commands.
+      const garage = this._garageSafety;
+      const enabled = !!(garage && garage.enabled());
+      const door = garage && typeof garage.doorState === 'function'
+        ? String(garage.doorState())
+        : 'unknown';
+      const stableOpen = !!(garage && typeof garage.isDoorOpenStable === 'function' && garage.isDoorOpenStable());
+      this.log('[external-start-observation]', JSON.stringify({
+        observedAt: new Date().toISOString(),
+        previousStatus: prev ?? null,
+        currentStatus: status,
+        garageModeEnabled: enabled,
+        doorState: door,
+        doorOpenStable: stableOpen,
+        note: 'post-status observation only; not a safety interlock',
+      }));
       this._garageSafety.onExternalMowingDetected().catch((e) => this.error('[garage] external start guard:', e.message));
     } else if (status === 'mowing' && prev !== 'mowing' && resumeGuardActive) {
       this.log('[garage] mowing after resume accepted without garage start flow');
